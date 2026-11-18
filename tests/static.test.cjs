@@ -7,6 +7,7 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const enhancements = fs.readFileSync(path.join(root, 'enhancements.js'), 'utf8');
+const enhancementStyles = fs.readFileSync(path.join(root, 'enhancements.css'), 'utf8');
 const serviceWorker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
 const baseline = execFileSync('git', ['show', '80206d02710207ee18ab6f233786fb98dc0db0b8:index.html'], {
@@ -36,7 +37,7 @@ test('v1.8 itinerary, products, shops and todos remain byte-for-byte equivalent 
   assert.deepEqual(contentData(index), contentData(baseline));
 });
 
-test('v1.9 resources are linked without replacing the v1.8 data script', () => {
+test('v1.9.1 resources are linked without replacing the v1.8 data script', () => {
   assert.match(index, /manifest\.webmanifest/);
   assert.match(index, /enhancements\.css/);
   assert.match(index, /enhancements\.js/);
@@ -61,6 +62,24 @@ test('shopping and itinerary progress use separate storage keys', () => {
   assert.doesNotMatch(enhancements, /removeItem\(storeKey\)/);
 });
 
+test('v1.9.1 fallbacks are supplemental and do not alter the v1.8 schedule data', () => {
+  assert.match(enhancements, /棉被購物失敗備案/);
+  assert.match(enhancements, /09:40–10:45/);
+  assert.match(enhancements, /12:00–15:10/);
+  assert.match(enhancements, /寄物失敗備案/);
+  assert.match(enhancements, /預計搭車時段，非已確認的 2027 班次/);
+  assert.match(enhancements, /14:40 不是已訂票車次/);
+});
+
+test('theme preference defaults to light and uses its own storage key', () => {
+  assert.match(enhancements, /const THEME_KEY = 'seoul_2027_theme'/);
+  assert.match(enhancements, /themeChoice = 'light'/);
+  assert.match(enhancements, /\['light', 'dark', 'system'\]/);
+  assert.doesNotMatch(enhancements, /removeItem\(THEME_KEY\)/);
+  assert.match(enhancementStyles, /:root\[data-dark="true"\]/);
+  assert.doesNotMatch(enhancementStyles, /@media \(prefers-color-scheme: dark\)/);
+});
+
 test('manifest supports standalone iPhone-first installation', () => {
   assert.equal(manifest.start_url, './');
   assert.equal(manifest.scope, './');
@@ -81,7 +100,7 @@ test('service worker precaches every local runtime asset and removes old version
   ]) {
     assert.match(serviceWorker, new RegExp(asset.replace(/[.*+?^$\{\}()|[\]\\]/g, '\\$&')));
   }
-  assert.match(serviceWorker, /seoul-trip-v1\.9/);
+  assert.match(serviceWorker, /seoul-trip-v1\.9\.1/);
   assert.match(serviceWorker, /key !== CACHE_NAME/);
   assert.doesNotMatch(serviceWorker, /localStorage/);
 });

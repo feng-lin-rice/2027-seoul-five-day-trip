@@ -33,7 +33,7 @@ function serveFile(request, response) {
   }
   let body = fs.readFileSync(filePath);
   if (pathname === '/sw.js') {
-    body = Buffer.from(body.toString('utf8').replace("'seoul-trip-v1.9'", "'seoul-trip-v1.9-" + swVariant + "'"));
+    body = Buffer.from(body.toString('utf8').replace("'seoul-trip-v1.9.1'", "'seoul-trip-v1.9.1-" + swVariant + "'"));
   }
   response.writeHead(200, {
     'Content-Type': mime[path.extname(filePath)] || 'application/octet-stream',
@@ -57,7 +57,7 @@ async function main() {
     deviceScaleFactor: 3,
     isMobile: true,
     hasTouch: true,
-    colorScheme: 'light',
+    colorScheme: 'dark',
     serviceWorkers: 'allow'
   });
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
@@ -74,10 +74,34 @@ async function main() {
   try {
     const response = await page.goto(origin + '/', { waitUntil: 'networkidle' });
     assert.equal(response.status(), 200);
-    await page.waitForFunction(() => navigator.serviceWorker.controller && window.SeoulTripV19);
-    assert.equal(await page.getByText('功能 v1.9', { exact: true }).count(), 1);
+    await page.waitForFunction(() => navigator.serviceWorker.controller && window.SeoulTripV191);
+    assert.equal(await page.getByText('功能 v1.9.1', { exact: true }).count(), 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9-mobile-home-light.png'), fullPage: true });
+    assert.deepEqual(await page.evaluate(() => ({
+      theme: document.documentElement.dataset.theme,
+      dark: document.documentElement.dataset.dark,
+      stored: localStorage.getItem('seoul_2027_theme'),
+      background: getComputedStyle(document.body).backgroundColor
+    })), { theme: 'light', dark: 'false', stored: null, background: 'rgb(247, 247, 245)' });
+    assert.ok((await page.getByRole('button', { name: '淺色', exact: true }).boundingBox()).height >= 44);
+    const stateBeforeTheme = await page.evaluate(() => ({
+      shopping: localStorage.getItem('seoul_2027_v18_checked'),
+      trip: localStorage.getItem('seoul_2027_v18_trip_progress')
+    }));
+    await page.getByRole('button', { name: '深色', exact: true }).click();
+    assert.deepEqual(await page.evaluate(() => [document.documentElement.dataset.dark, localStorage.getItem('seoul_2027_theme')]), ['true', 'dark']);
+    await page.getByRole('button', { name: '跟隨系統', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.dark), 'true');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.waitForFunction(() => document.documentElement.dataset.dark === 'false');
+    await page.getByRole('button', { name: '淺色', exact: true }).click();
+    await page.emulateMedia({ colorScheme: 'dark' });
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.dark), 'false');
+    assert.deepEqual(await page.evaluate(() => ({
+      shopping: localStorage.getItem('seoul_2027_v18_checked'),
+      trip: localStorage.getItem('seoul_2027_v18_trip_progress')
+    })), stateBeforeTheme);
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-home-light.png'), fullPage: true });
 
     await page.getByRole('button', { name: /行程/ }).click();
     assert.equal(await page.locator('.day-tabs .tab').count(), 5);
@@ -89,10 +113,37 @@ async function main() {
     await page.locator('#next-stop-select').selectOption('d1-hotel-checkin');
     assert.equal(await page.locator('.next-card h3').innerText(), 'New Blanc Central Myeongdong');
 
+    await page.locator('.day-tabs .tab').nth(1).click();
+    const beddingCard = page.locator('.stop-card').filter({ hasText: '美都棉被' });
+    const beddingBackup = beddingCard.locator('.backup-details');
+    assert.equal(await beddingBackup.getAttribute('open'), null);
+    await beddingBackup.locator('summary').click();
+    const beddingText = await beddingBackup.innerText();
+    assert.match(beddingText, /10:15/);
+    assert.match(beddingText, /이브자리 종로4점/);
+    assert.match(beddingText, /Day 4 備案時間（不同於一般版）/);
+    assert.match(beddingText, /09:40–10:45/);
+    assert.match(beddingText, /21:30/);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-day2-bedding-backup.png'), fullPage: true });
+
     await page.locator('.day-tabs .tab').nth(3).click();
     await page.getByRole('heading', { name: 'The Hyundai Seoul（現代百貨）', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9-mobile-day4-light.png'), fullPage: true });
+    assert.equal(await page.getByText('10:40–14:15', { exact: true }).count(), 1);
+
+    await page.locator('.day-tabs .tab').nth(4).click();
+    const luggageCard = page.locator('.stop-card').filter({ hasText: '退房並寄放行李' });
+    await luggageCard.locator('.backup-details summary').click();
+    const luggageText = await luggageCard.locator('.backup-details').innerText();
+    assert.match(luggageText, /首爾站可預約的付費寄物服務/);
+    assert.match(luggageText, /不可假設大型置物櫃一定有空位/);
+    const arexCard = page.locator('.stop-card').filter({ hasText: '搭 AREX 前往仁川 T1' });
+    assert.match(await arexCard.innerText(), /14:10–14:40｜預計搭車時段/);
+    assert.match(await arexCard.innerText(), /非已確認的 2027 班次/);
+    assert.match(await arexCard.innerText(), /14:40 不是已訂票車次/);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-day5-backups.png'), fullPage: true });
 
     await page.getByRole('button', { name: /總覽/ }).click();
     await page.getByRole('button', { name: /複製飯店韓文地址/ }).click();
@@ -140,7 +191,7 @@ async function main() {
       trip: localStorage.getItem('seoul_2027_v18_trip_progress')
     }));
     const cachesBefore = await page.evaluate(() => caches.keys());
-    assert.ok(cachesBefore.includes('seoul-trip-v1.9-a'));
+    assert.ok(cachesBefore.includes('seoul-trip-v1.9.1-a'));
 
     swVariant = 'b';
     await page.evaluate(() => new Promise(async (resolve, reject) => {
@@ -155,10 +206,10 @@ async function main() {
     let cachesAfter = [];
     for (let attempt = 0; attempt < 50; attempt += 1) {
       cachesAfter = await page.evaluate(() => caches.keys());
-      if (cachesAfter.includes('seoul-trip-v1.9-b') && !cachesAfter.includes('seoul-trip-v1.9-a')) break;
+      if (cachesAfter.includes('seoul-trip-v1.9.1-b') && !cachesAfter.includes('seoul-trip-v1.9.1-a')) break;
       await page.waitForTimeout(100);
     }
-    if (cachesAfter.includes('seoul-trip-v1.9-a')) {
+    if (cachesAfter.includes('seoul-trip-v1.9.1-a')) {
       const cacheDebug = await page.evaluate(async () => {
         const result = {};
         for (const name of await caches.keys()) {
@@ -168,8 +219,8 @@ async function main() {
       });
       console.log('CACHE_DEBUG ' + JSON.stringify(cacheDebug));
     }
-    assert.ok(cachesAfter.includes('seoul-trip-v1.9-b'));
-    assert.equal(cachesAfter.includes('seoul-trip-v1.9-a'), false);
+    assert.ok(cachesAfter.includes('seoul-trip-v1.9.1-b'));
+    assert.equal(cachesAfter.includes('seoul-trip-v1.9.1-a'), false);
     assert.deepEqual(await page.evaluate(() => ({
       shopping: localStorage.getItem('seoul_2027_v18_checked'),
       trip: localStorage.getItem('seoul_2027_v18_trip_progress')
@@ -186,21 +237,28 @@ async function main() {
       return images.length === 13 && images.every(image => image.complete && image.naturalWidth > 0);
     });
     assert.equal(await page.locator('.product img').evaluateAll(images => images.filter(image => !image.complete || image.naturalWidth === 0).length), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9-mobile-offline.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-offline.png'), fullPage: true });
 
     await context.setOffline(false);
     await page.reload({ waitUntil: 'networkidle' });
-    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.getByRole('button', { name: '深色', exact: true }).click();
     const colors = await page.evaluate(() => {
       const style = getComputedStyle(document.body);
-      return { background: style.backgroundColor, color: style.color };
+      return { background: style.backgroundColor, color: style.color, theme: localStorage.getItem('seoul_2027_theme') };
     });
     assert.notEqual(colors.background, colors.color);
+    assert.equal(colors.theme, 'dark');
+    await page.reload({ waitUntil: 'networkidle' });
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.dark), 'true');
+    assert.deepEqual(await page.evaluate(() => ({
+      shopping: localStorage.getItem('seoul_2027_v18_checked'),
+      trip: localStorage.getItem('seoul_2027_v18_trip_progress')
+    })), storageBeforeUpdate);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9-mobile-home-dark.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-home-dark.png'), fullPage: true });
 
     assert.deepEqual(errors, []);
-    console.log('E2E PASS: Day 1-5, next stop, stable progress, shopping preservation, address copy, ICS, SW update, offline images, 390x844, dark mode');
+    console.log('E2E PASS: v1.9.1 fallbacks, light/dark/system themes, Day 1-5, next stop, stable progress, shopping preservation, address copy, ICS, SW update, offline images, 390x844');
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));

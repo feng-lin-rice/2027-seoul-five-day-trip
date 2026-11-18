@@ -1,9 +1,10 @@
 'use strict';
 
-const SITE_VERSION = 'v1.9';
+const SITE_VERSION = 'v1.9.1';
 const ITINERARY_VERSION = 'v1.8';
 const TRIP_PROGRESS_KEY = 'seoul_2027_v18_trip_progress';
 const MANUAL_NEXT_KEY = 'seoul_2027_v18_manual_next';
+const THEME_KEY = 'seoul_2027_theme';
 const HOTEL_ADDRESS = '서울 중구 창경궁로 20';
 
 const EVENT_METADATA = {
@@ -58,7 +59,7 @@ const EVENT_METADATA = {
   'Day 5|返回飯店': { id: 'd5-return-hotel', koreanAddress: HOTEL_ADDRESS },
   'Day 5|取行李・補裝購物': { id: 'd5-pickup-luggage', koreanAddress: HOTEL_ADDRESS },
   'Day 5|最晚離開飯店': { id: 'd5-leave-hotel', koreanAddress: HOTEL_ADDRESS },
-  'Day 5|搭 AREX 前往仁川 T1': { id: 'd5-arex' },
+  'Day 5|搭 AREX 前往仁川 T1': { id: 'd5-arex', displayTime: '14:10–14:40｜預計搭車時段' },
   'Day 5|抵達仁川 T1': { id: 'd5-incheon-arrival' },
   'Day 5|BR159｜回台灣': { id: 'd5-br159-return' }
 };
@@ -115,6 +116,56 @@ function allEvents() {
 function eventTitle(event) {
   return event.displayTitle || event.title;
 }
+
+function eventTime(event) {
+  return event.displayTime || event.time;
+}
+
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+let themeChoice = 'light';
+try {
+  themeChoice = localStorage.getItem(THEME_KEY) || 'light';
+} catch (error) {
+  console.warn('無法讀取主題設定', error);
+}
+if (!['light', 'dark', 'system'].includes(themeChoice)) themeChoice = 'light';
+
+function applyTheme(theme, persist) {
+  themeChoice = ['light', 'dark', 'system'].includes(theme) ? theme : 'light';
+  const dark = themeChoice === 'dark' || (themeChoice === 'system' && systemDark.matches);
+  document.documentElement.dataset.theme = themeChoice;
+  document.documentElement.dataset.dark = String(dark);
+  document.querySelector('meta[name="theme-color"]').content = dark ? '#15191e' : '#f7f7f5';
+  document.querySelectorAll('.theme-button').forEach(function (button) {
+    button.setAttribute('aria-pressed', String(button.dataset.theme === themeChoice));
+  });
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_KEY, themeChoice);
+    } catch (error) {
+      console.warn('無法儲存主題設定', error);
+    }
+  }
+}
+
+function initThemeControl() {
+  const header = document.querySelector('header');
+  if (!header || header.querySelector('.theme-switcher')) return;
+  header.insertAdjacentHTML('beforeend', '<div class="theme-switcher" role="group" aria-label="網站主題">' +
+    '<button class="theme-button" type="button" data-theme="light" onclick="setTheme(\'light\')">淺色</button>' +
+    '<button class="theme-button" type="button" data-theme="dark" onclick="setTheme(\'dark\')">深色</button>' +
+    '<button class="theme-button" type="button" data-theme="system" onclick="setTheme(\'system\')">跟隨系統</button></div>');
+  applyTheme(themeChoice, false);
+}
+
+function setTheme(theme) {
+  applyTheme(theme, true);
+}
+
+if (systemDark.addEventListener) systemDark.addEventListener('change', function () { applyTheme(themeChoice, false); });
+else systemDark.addListener(function () { applyTheme(themeChoice, false); });
+
+applyTheme(themeChoice, false);
 
 function tripIsDone(id) {
   return tripProgress[id] === true;
@@ -182,7 +233,7 @@ function nextStopCard(day) {
   const next = incomplete.find(function (event) { return event.id === selectedId; }) || incomplete[0];
   const options = ['<option value="">自動：第一個尚未完成</option>'].concat(incomplete.map(function (event) {
     return '<option value="' + clean(event.id) + '"' + (event.id === selectedId ? ' selected' : '') + '>' +
-      clean(event.time + '｜' + eventTitle(event)) + '</option>';
+      clean(eventTime(event) + '｜' + eventTitle(event)) + '</option>';
   })).join('');
   if (!next) {
     return '<section class="next-card complete-day" aria-label="下一站"><div class="next-kicker">下一站</div>' +
@@ -190,7 +241,7 @@ function nextStopCard(day) {
       '<button class="reset-trip" type="button" onclick="resetTripProgress()">重設行程進度</button></section>';
   }
   return '<section class="next-card" aria-label="下一站">' +
-    '<div class="next-kicker">下一站</div><div class="next-time">' + clean(next.time) + '</div>' +
+    '<div class="next-kicker">下一站</div><div class="next-time">' + clean(eventTime(next)) + '</div>' +
     '<h3>' + clean(eventTitle(next)) + '</h3>' +
     (next.koreanAddress ? '<p class="next-address" lang="ko">' + clean(next.koreanAddress) + '</p>' : '') +
     '<p class="next-mode"><strong>建議交通：</strong>' + clean(next.mode || '行程未指定') + '</p>' +
@@ -200,6 +251,41 @@ function nextStopCard(day) {
     '<button class="reset-trip" type="button" onclick="resetTripProgress()">重設行程進度</button></section>';
 }
 
+function fallbackDetails(event) {
+  if (event.id === 'd2-mido-bedding') {
+    return '<details class="backup-details"><summary>棉被購物失敗備案</summary><div class="backup-body">' +
+      '<p class="backup-condition"><strong>僅在 Day 2 買不到棉被時啟用；Day 4 平常仍照原定行程。</strong></p>' +
+      '<h4>Day 2 執行界線</h4><ul>' +
+      '<li><strong>1/18 晚上：</strong>請飯店協助確認美都棉被是否營業、能否真空壓縮。</li>' +
+      '<li><strong>1/19 10:15：</strong>若美都未開，轉找 <span lang="ko">이브자리 종로4점</span>；實際位置與營業仍須先確認。</li>' +
+      '<li><strong>10:35：</strong>仍買不到就停止等待，前往東時藥局。</li>' +
+      '<li><strong>最晚 10:50：</strong>離開棉被區，不影響明洞主要行程。</li></ul>' +
+      '<h4>Day 4 備案時間（不同於一般版）</h4><ul>' +
+      '<li><strong>09:40–10:45：</strong>廣藏市場購買棉被並回飯店放置；優先美都棉被，備選 <span lang="ko">이브자리 종로4점</span>。</li>' +
+      '<li><strong>12:00–15:10：</strong>The Hyundai Seoul（現代百貨）。</li>' +
+      '<li><strong>15:50–20:10：</strong>弘大／延南洞。</li>' +
+      '<li><strong>20:50：</strong>返回飯店。</li><li><strong>21:30：</strong>進入 SPAREX 汗蒸幕。</li></ul>' +
+      '<p>原始備案未細分每段交通與購物時間；店家地址、營業時間仍待確認，不自行補寫精確時段。</p>' +
+      '</div></details>';
+  }
+  if (event.id === 'd5-checkout') {
+    return '<details class="backup-details"><summary>寄物失敗備案</summary><div class="backup-body">' +
+      '<p class="backup-condition"><strong>主要方案仍是飯店寄放行李，採買後返回整理。</strong></p><ul>' +
+      '<li><strong>1/21 晚上：</strong>確認飯店是否允許退房後寄物，以及能否在指定區域整理行李。</li>' +
+      '<li>若飯店拒絕，改評估首爾站可預約的付費寄物服務。</li>' +
+      '<li>不可假設大型置物櫃一定有空位。</li>' +
+      '<li>必須重新評估寄物、取行李與 AREX 的銜接時間。</li>' +
+      '<li><strong>無論使用哪個方案，都優先保護前往機場的時間。</strong></li></ul>' +
+      '</div></details>';
+  }
+  if (event.id === 'd5-arex') {
+    return '<div class="arex-warning"><strong>預計搭車時段，非已確認的 2027 班次。</strong>' +
+      '<ul><li>13:20 最晚離開飯店。</li><li>2027 年 AREX 時刻表待確認。</li>' +
+      '<li>依實際車次選擇適合的直達車或普通車。</li><li>14:40 不是已訂票車次。</li></ul></div>';
+  }
+  return '';
+}
+
 function renderStopV19(event) {
   const critical = event.fixed ? ' critical' : '';
   const complete = tripIsDone(event.id);
@@ -207,14 +293,14 @@ function renderStopV19(event) {
     event.optional ? '<span class="status option">可選配</span>' :
       event.tag ? '<span class="status">' + clean(event.tag) + '</span>' : '';
   return '<article class="stop' + (complete ? ' trip-complete' : '') + '">' +
-    '<div class="stop-card' + critical + '"><div class="stop-top"><div><span class="time">' + clean(event.time) + '</span>' +
+    '<div class="stop-card' + critical + '"><div class="stop-top"><div><span class="time">' + clean(eventTime(event)) + '</span>' +
     '<h3>' + clean(eventTitle(event)) + '</h3>' + (event.sub ? '<p class="sub">' + clean(event.sub) + '</p>' : '') +
     '</div><div class="stop-controls">' + status +
     '<label class="trip-check"><input type="checkbox" ' + (complete ? 'checked ' : '') +
     'onchange="toggleTrip(\'' + clean(event.id) + '\')" aria-label="標記 ' + clean(eventTitle(event)) + ' 完成"><span>完成</span></label></div></div>' +
     (event.mode ? '<div class="route"><b>' + clean(event.mode) + '</b><div>' + clean(event.route || '') + '</div>' +
       (event.duration ? '<div class="duration">⏱ ' + clean(event.duration) + '</div>' : '') + '</div>' : '') +
-    (event.note ? '<div class="note">💡 ' + clean(event.note) + '</div>' : '') +
+    (event.note ? '<div class="note">💡 ' + clean(event.note) + '</div>' : '') + fallbackDetails(event) +
     ((event.url || event.koreanAddress) ? '<div class="actions">' + mapLink(event.url) + copyAction(event) + '</div>' : '') +
     '</div></article>';
 }
@@ -277,7 +363,7 @@ function buildIcs(reminder, selectedTime) {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//2027 Seoul Trip Website v1.9//ZH-HANT',
+    'PRODID:-//2027 Seoul Trip Website v1.9.1//ZH-HANT',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH'
   ].concat(timezoneBlock(reminder.timezone), [
@@ -338,7 +424,7 @@ configureEvents();
 const homeV18 = home;
 home = function () {
   return homeV18()
-    .replace('<strong>v1.8</strong><span>正式行程</span>', '<strong>功能 v1.9</strong><span>行程仍為 v1.8</span>')
+    .replace('<strong>v1.8</strong><span>正式行程</span>', '<strong>功能 v1.9.1</strong><span>行程仍為 v1.8</span>')
     .replace('<p>서울 중구 창경궁로 20</p><div class="actions">', '<p lang="ko">서울 중구 창경궁로 20</p><div class="actions">' + copyAction(findEvent('d1-hotel-checkin'), '複製飯店韓文地址'));
 };
 
@@ -355,11 +441,13 @@ window.setManualNext = setManualNext;
 window.resetTripProgress = resetTripProgress;
 window.copyKoreanAddress = copyKoreanAddress;
 window.downloadReminder = downloadReminder;
-window.SeoulTripV19 = {
+window.setTheme = setTheme;
+window.SeoulTripV191 = window.SeoulTripV19 = {
   siteVersion: SITE_VERSION,
   itineraryVersion: ITINERARY_VERSION,
   tripProgressKey: TRIP_PROGRESS_KEY,
   shoppingKey: storeKey,
+  themeKey: THEME_KEY,
   buildIcs: buildIcs,
   metadataCount: Object.keys(EVENT_METADATA).length
 };
@@ -372,4 +460,5 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
 }
 
+initThemeControl();
 render();
