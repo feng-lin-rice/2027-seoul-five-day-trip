@@ -33,7 +33,7 @@ function serveFile(request, response) {
   }
   let body = fs.readFileSync(filePath);
   if (pathname === '/sw.js') {
-    body = Buffer.from(body.toString('utf8').replace("'seoul-trip-v1.9.1'", "'seoul-trip-v1.9.1-" + swVariant + "'"));
+    body = Buffer.from(body.toString('utf8').replace("'seoul-trip-v1.9.2'", "'seoul-trip-v1.9.2-" + swVariant + "'"));
   }
   response.writeHead(200, {
     'Content-Type': mime[path.extname(filePath)] || 'application/octet-stream',
@@ -74,8 +74,8 @@ async function main() {
   try {
     const response = await page.goto(origin + '/', { waitUntil: 'networkidle' });
     assert.equal(response.status(), 200);
-    await page.waitForFunction(() => navigator.serviceWorker.controller && window.SeoulTripV191);
-    assert.equal(await page.getByText('功能 v1.9.1', { exact: true }).count(), 1);
+    await page.waitForFunction(() => navigator.serviceWorker.controller && window.SeoulTripV192);
+    assert.equal(await page.getByText('功能 v1.9.2', { exact: true }).count(), 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
     assert.deepEqual(await page.evaluate(() => ({
       theme: document.documentElement.dataset.theme,
@@ -101,7 +101,7 @@ async function main() {
       shopping: localStorage.getItem('seoul_2027_v18_checked'),
       trip: localStorage.getItem('seoul_2027_v18_trip_progress')
     })), stateBeforeTheme);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-home-light.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-home-light.png'), fullPage: true });
 
     await page.getByRole('button', { name: /行程/ }).click();
     assert.equal(await page.locator('.day-tabs .tab').count(), 5);
@@ -125,12 +125,41 @@ async function main() {
     assert.match(beddingText, /09:40–10:45/);
     assert.match(beddingText, /21:30/);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-day2-bedding-backup.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-day2-bedding-backup.png'), fullPage: true });
+
+    await page.locator('.day-tabs .tab').nth(2).click();
+    const day3Cards = await page.locator('.timeline .stop-card h3').allTextContents();
+    assert.deepEqual(day3Cards.slice(-5), [
+      '蠶室自由活動・休息／簡單點心',
+      'SEOUL SKY 夜景',
+      '前往東大門',
+      '陳玉華奶奶元祖一隻雞',
+      '返回飯店'
+    ]);
+    const muguokDetails = page.locator('.stop-card').filter({ hasText: '景福宮' }).locator('.backup-details');
+    await muguokDetails.locator('summary').click();
+    assert.match(await muguokDetails.innerText(), /候選美食，不是固定行程/);
+    assert.match(await muguokDetails.innerText(), /不得壓縮原本馬場洞現代畜產韓牛午餐/);
+    const dinnerCard = page.locator('.stop-card').filter({ hasText: '陳玉華奶奶元祖一隻雞' });
+    assert.match(await dinnerCard.innerText(), /晚餐首選/);
+    await dinnerCard.locator('.backup-details summary').click();
+    assert.match(await dinnerCard.locator('.backup-details').innerText(), /只有陳玉華排隊太久、時間太晚或當天太累時才改用/);
+    assert.match(await dinnerCard.locator('.backup-details').innerText(), /全州雪濃湯/);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-day3-dinner-options.png'), fullPage: true });
 
     await page.locator('.day-tabs .tab').nth(3).click();
     await page.getByRole('heading', { name: 'The Hyundai Seoul（現代百貨）', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
     assert.equal(await page.getByText('10:40–14:15', { exact: true }).count(), 1);
+    const day4Cards = await page.locator('.timeline .stop-card h3').allTextContents();
+    assert.deepEqual(day4Cards.slice(5, 9), ['弘大品牌街自由逛', '通大排骨・弘大店', '雪冰・黃豆粉年糕口味', '返回飯店']);
+    const galbiCard = page.locator('.stop-card').filter({ hasText: '通大排骨・弘大店' });
+    assert.match(await galbiCard.innerText(), /18:00–19:10/);
+    assert.match(await galbiCard.innerText(), /17,500 韓元起/);
+    assert.match(await galbiCard.innerText(), /先縮短雪冰以保留 SPAREX/);
+    assert.equal(await page.getByText('21:10–23:50', { exact: true }).count(), 1);
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-day4-dinner.png'), fullPage: true });
 
     await page.locator('.day-tabs .tab').nth(4).click();
     const luggageCard = page.locator('.stop-card').filter({ hasText: '退房並寄放行李' });
@@ -143,7 +172,7 @@ async function main() {
     assert.match(await arexCard.innerText(), /非已確認的 2027 班次/);
     assert.match(await arexCard.innerText(), /14:40 不是已訂票車次/);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-day5-backups.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-day5-backups.png'), fullPage: true });
 
     await page.getByRole('button', { name: /總覽/ }).click();
     await page.getByRole('button', { name: /複製飯店韓文地址/ }).click();
@@ -191,7 +220,7 @@ async function main() {
       trip: localStorage.getItem('seoul_2027_v18_trip_progress')
     }));
     const cachesBefore = await page.evaluate(() => caches.keys());
-    assert.ok(cachesBefore.includes('seoul-trip-v1.9.1-a'));
+    assert.ok(cachesBefore.includes('seoul-trip-v1.9.2-a'));
 
     swVariant = 'b';
     await page.evaluate(() => new Promise(async (resolve, reject) => {
@@ -206,10 +235,10 @@ async function main() {
     let cachesAfter = [];
     for (let attempt = 0; attempt < 50; attempt += 1) {
       cachesAfter = await page.evaluate(() => caches.keys());
-      if (cachesAfter.includes('seoul-trip-v1.9.1-b') && !cachesAfter.includes('seoul-trip-v1.9.1-a')) break;
+      if (cachesAfter.includes('seoul-trip-v1.9.2-b') && !cachesAfter.includes('seoul-trip-v1.9.2-a')) break;
       await page.waitForTimeout(100);
     }
-    if (cachesAfter.includes('seoul-trip-v1.9.1-a')) {
+    if (cachesAfter.includes('seoul-trip-v1.9.2-a')) {
       const cacheDebug = await page.evaluate(async () => {
         const result = {};
         for (const name of await caches.keys()) {
@@ -219,8 +248,8 @@ async function main() {
       });
       console.log('CACHE_DEBUG ' + JSON.stringify(cacheDebug));
     }
-    assert.ok(cachesAfter.includes('seoul-trip-v1.9.1-b'));
-    assert.equal(cachesAfter.includes('seoul-trip-v1.9.1-a'), false);
+    assert.ok(cachesAfter.includes('seoul-trip-v1.9.2-b'));
+    assert.equal(cachesAfter.includes('seoul-trip-v1.9.2-a'), false);
     assert.deepEqual(await page.evaluate(() => ({
       shopping: localStorage.getItem('seoul_2027_v18_checked'),
       trip: localStorage.getItem('seoul_2027_v18_trip_progress')
@@ -237,7 +266,7 @@ async function main() {
       return images.length === 13 && images.every(image => image.complete && image.naturalWidth > 0);
     });
     assert.equal(await page.locator('.product img').evaluateAll(images => images.filter(image => !image.complete || image.naturalWidth === 0).length), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-offline.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-offline.png'), fullPage: true });
 
     await context.setOffline(false);
     await page.reload({ waitUntil: 'networkidle' });
@@ -255,10 +284,10 @@ async function main() {
       trip: localStorage.getItem('seoul_2027_v18_trip_progress')
     })), storageBeforeUpdate);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
-    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.1-mobile-home-dark.png'), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'v1.9.2-mobile-home-dark.png'), fullPage: true });
 
     assert.deepEqual(errors, []);
-    console.log('E2E PASS: v1.9.1 fallbacks, light/dark/system themes, Day 1-5, next stop, stable progress, shopping preservation, address copy, ICS, SW update, offline images, 390x844');
+    console.log('E2E PASS: v1.9.2 Day 3/4 food plans, separated alternatives, preserved fallbacks, light/dark/system themes, Day 1-5, next stop, stable progress, shopping preservation, address copy, ICS, SW update, offline images, 390x844');
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));
