@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'seoul-trip-v1.9.2';
+const CACHE_NAME = 'seoul-trip-v1.9.3';
 const CACHE_PREFIX = 'seoul-trip-';
 const PRECACHE = [
   './',

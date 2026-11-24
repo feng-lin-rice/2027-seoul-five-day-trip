@@ -1,6 +1,6 @@
 'use strict';
 
-const SITE_VERSION = 'v1.9.2';
+const SITE_VERSION = 'v1.9.3';
 const ITINERARY_VERSION = 'v1.8';
 const TRIP_PROGRESS_KEY = 'seoul_2027_v18_trip_progress';
 const MANUAL_NEXT_KEY = 'seoul_2027_v18_manual_next';
@@ -255,17 +255,17 @@ function nextStopCard(day) {
 
 function fallbackDetails(event) {
   if (event.id === 'd3-gyeongbokgung') {
-    return '<details class="backup-details"><summary>美食候選｜無垢屋</summary><div class="backup-body">' +
+    return '<details class="backup-details"><summary>美食候選｜無垢屋｜韓式雞湯白飯</summary><div class="backup-body">' +
       '<p class="backup-condition"><strong>候選美食，不是固定行程；不得壓縮原本馬場洞現代畜產韓牛午餐。</strong></p>' +
-      '<p><strong>無垢屋（무구옥）</strong><br><span lang="ko">서울 종로구 율곡로1길 7</span></p>' +
+      '<p><strong>無垢屋（무구옥）｜韓式雞湯白飯</strong><br><span lang="ko">서울 종로구 율곡로1길 7</span></p>' +
       '<p>目前資料顯示午餐 11:00–14:00、晚餐 17:30–20:00；排隊與 2027 營業資訊須出發前複查。</p>' +
       '<div class="actions"><a href="https://map.naver.com/p/search/%EB%AC%B4%EA%B5%AC%EC%98%A5%20%EC%9C%A8%EA%B3%A1%EB%A1%9C1%EA%B8%B8%207" target="_blank" rel="noopener">🗺 NAVER Map</a></div>' +
       '</div></details>';
   }
   if (event.id === 'd3-jin-ok-hwa') {
-    return '<details class="backup-details"><summary>晚餐備案｜蠶室熱湯</summary><div class="backup-body">' +
+    return '<details class="backup-details"><summary>晚餐備案｜全州雪濃湯｜韓式牛骨湯</summary><div class="backup-body">' +
       '<p class="backup-condition"><strong>只有陳玉華排隊太久、時間太晚或當天太累時才改用，不是第二頓晚餐。</strong></p>' +
-      '<p><strong>候選：全州雪濃湯（전주설렁탕）</strong><br><span lang="ko">서울 송파구 백제고분로7길 33</span></p>' +
+      '<p><strong>候選：全州雪濃湯（전주설렁탕）｜韓式牛骨湯</strong><br><span lang="ko">서울 송파구 백제고분로7길 33</span></p>' +
       '<p>目前官方旅遊資料標示 24 小時營業、全年無休，距新川站 4 號出口約 268 公尺；從 SEOUL SKY 前往仍需轉乘或搭車，2027 營業與當晚動線須再確認。</p>' +
       '<div class="actions"><a href="https://map.naver.com/p/search/%EC%A0%84%EC%A3%BC%EC%84%A4%EB%A0%81%ED%83%95%20%EB%B0%B1%EC%A0%9C%EA%B3%A0%EB%B6%84%EB%A1%9C7%EA%B8%B8%2033" target="_blank" rel="noopener">🗺 NAVER Map</a></div>' +
       '</div></details>';
@@ -334,7 +334,7 @@ function renderDayV19() {
     '<h2>' + clean(day.name) + '</h2><p>' + clean(day.theme) + '</p><div class="day-badges">' +
     '<span class="pill">📍 點地點開 NAVER Map</span><span class="pill">⏱ 時間大多可彈性調整</span></div></div>' +
     '<div class="timeline">' + day.events.map(renderStopV19).join('') + '</div>' +
-    '<div class="clear-note"><strong>出發前提示：</strong>此頁以 v1.8 正式行程為基準，含核准的 v1.9.2 美食調整。交通時間是規劃估計，2027 班表與營業資訊仍需依當期公告核對。</div>';
+    '<div class="clear-note"><strong>出發前提示：</strong>此頁以 v1.8 正式行程為基準，含核准的 v1.9.3 美食文字調整。交通時間是規劃估計，2027 班表與營業資訊仍需依當期公告核對。</div>';
 }
 
 function offsetInfo(timezone) {
@@ -381,7 +381,7 @@ function buildIcs(reminder, selectedTime) {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//2027 Seoul Trip Website v1.9.2//ZH-HANT',
+    'PRODID:-//2027 Seoul Trip Website v1.9.3//ZH-HANT',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH'
   ].concat(timezoneBlock(reminder.timezone), [
@@ -442,7 +442,7 @@ configureEvents();
 const homeV18 = home;
 home = function () {
   return homeV18()
-    .replace('<strong>v1.8</strong><span>正式行程</span>', '<strong>功能 v1.9.2</strong><span>行程基準 v1.8</span>')
+    .replace('<strong>v1.8</strong><span>正式行程</span>', '<strong>功能 v1.9.3</strong><span>行程基準 v1.8</span>')
     .replace('<p>서울 중구 창경궁로 20</p><div class="actions">', '<p lang="ko">서울 중구 창경궁로 20</p><div class="actions">' + copyAction(findEvent('d1-hotel-checkin'), '複製飯店韓文地址'));
 };
 
@@ -460,7 +460,7 @@ window.resetTripProgress = resetTripProgress;
 window.copyKoreanAddress = copyKoreanAddress;
 window.downloadReminder = downloadReminder;
 window.setTheme = setTheme;
-window.SeoulTripV192 = window.SeoulTripV191 = window.SeoulTripV19 = {
+window.SeoulTripV193 = window.SeoulTripV192 = window.SeoulTripV191 = window.SeoulTripV19 = {
   siteVersion: SITE_VERSION,
   itineraryVersion: ITINERARY_VERSION,
   tripProgressKey: TRIP_PROGRESS_KEY,
